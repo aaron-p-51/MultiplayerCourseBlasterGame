@@ -42,6 +42,10 @@ public:
 	void UpdateHUDAmmo();
 
 	void SpawDefaultWeapon();
+
+	UPROPERTY(VisibleAnywhere)
+	TMap<FName, class UBoxComponent*> HitCollisionBoxes; 
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -127,6 +131,8 @@ protected:
 
 	UPROPERTY(EditAnywhere)
 	class UBoxComponent* foot_r;
+
+
 
 
 private:
