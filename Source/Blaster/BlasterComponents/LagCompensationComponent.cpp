@@ -403,6 +403,7 @@ FFramePackage ULagCompensationComponent::GetFrameToCheck(ABlasterCharacter* HitC
 		FrameToCheck = InterpBetweenFrames(Older->GetValue(), Younger->GetValue(), HitTime);
 	}
 
+	FrameToCheck.Character = HitCharacter;
 	return FrameToCheck;
 }
 
@@ -442,12 +443,12 @@ void ULagCompensationComponent::ShotgunServerScoreRequest_Implementation(const T
 
 		if (Confirm.BodyShots.Contains(HitCharacter))
 		{
-			const float BodyShotDamage = Confirm.BodyShots[Character] * Character->GetEquippedWeapon()->GetDamage();
+			const float BodyShotDamage = Confirm.BodyShots[HitCharacter] * Character->GetEquippedWeapon()->GetDamage();
 			TotalDamage += BodyShotDamage;
 		}
 
 		UGameplayStatics::ApplyDamage(
-			Character,
+			HitCharacter,
 			TotalDamage,
 			Character->Controller,
 			Character->GetEquippedWeapon(),

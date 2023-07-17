@@ -4,10 +4,13 @@
 #include "Shotgun.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Blaster/Character/BlasterCharacter.h"
+#include "Blaster/PlayerController/BlasterPlayerController.h"
+#include "Blaster/BlasterComponents/LagCompensationComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "particles/ParticleSystemComponent.h"
 #include "Sound/SoundCue.h"
 #include "Kismet/KismetMathLibrary.h"
+
 
 void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
 {
@@ -65,22 +68,43 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
 				}
 			}
 		}
+
+		TArray<ABlasterCharacter*> HitCaracters;
+
 		for (auto HitPair : HitMap)
 		{
-			if (HitPair.Key && HasAuthority() && InstigatorController)
+			if (HitPair.Key && InstigatorController)
 			{
-				UGameplayStatics::ApplyDamage(
-					HitPair.Key,			// Character that was hit
-					Damage * HitPair.Value, // Multiply damage by number of types hit
-					InstigatorController,
-					this,
-					UDamageType::StaticClass()
+				if (HasAuthority() && !bUseServerSideRewind)
+				{
+					UGameplayStatics::ApplyDamage(
+						HitPair.Key,			// Character that was hit
+						Damage * HitPair.Value, // Multiply damage by number of types hit
+						InstigatorController,
+						this,
+						UDamageType::StaticClass()
+					);
+				}
+
+				HitCaracters.Add(HitPair.Key);
+			}
+		}
+
+		if (!HasAuthority() && bUseServerSideRewind)
+		{
+			BlasterOwnerController = BlasterOwnerController == nullptr ? Cast<ABlasterPlayerController>(InstigatorController) : BlasterOwnerController;
+			BlasterOwnerCharacter = BlasterOwnerCharacter == nullptr ? Cast<ABlasterCharacter>(OwnerPawn) : BlasterOwnerCharacter;
+			if (BlasterOwnerController && BlasterOwnerCharacter && BlasterOwnerCharacter->IsLocallyControlled() && BlasterOwnerCharacter->GetLagCompensationComponent())
+			{
+				BlasterOwnerCharacter->GetLagCompensationComponent()->ShotgunServerScoreRequest(
+					HitCaracters,
+					Start,
+					HitTargets,
+					BlasterOwnerController->GetServerTime() - BlasterOwnerController->SingleTripTime
 				);
 			}
 		}
 	}
-
-
 }
 
 void AShotgun::ShotgunTraceEndWithScatter(const FVector& HitTarget, TArray<FVector_NetQuantize>& HitTargets)
