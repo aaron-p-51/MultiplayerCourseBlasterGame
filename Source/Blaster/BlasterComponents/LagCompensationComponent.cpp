@@ -425,6 +425,37 @@ void ULagCompensationComponent::ServerScoreRequest_Implementation(ABlasterCharac
 	}
 }
 
+void ULagCompensationComponent::ShotgunServerScoreRequest_Implementation(const TArray<ABlasterCharacter*>& HitCharacters, const FVector_NetQuantize& TraceStart, const TArray<FVector_NetQuantize>& HitLocations, float HitTime)
+{
+	FShotgunServerSideRewindResult Confirm = ShotgunServerSideRewind(HitCharacters, TraceStart, HitLocations, HitTime);
+
+	for (const auto& HitCharacter : HitCharacters)
+	{
+		if (HitCharacter == nullptr || HitCharacter->GetEquippedWeapon() == nullptr || Character == nullptr) continue;
+
+		float TotalDamage = 0.f;
+		if (Confirm.HeadShots.Contains(HitCharacter))
+		{
+			const float HeadshotDamage = Confirm.HeadShots[HitCharacter] * Character->GetEquippedWeapon()->GetDamage();
+			TotalDamage += HeadshotDamage;
+		}
+
+		if (Confirm.BodyShots.Contains(HitCharacter))
+		{
+			const float BodyShotDamage = Confirm.BodyShots[Character] * Character->GetEquippedWeapon()->GetDamage();
+			TotalDamage += BodyShotDamage;
+		}
+
+		UGameplayStatics::ApplyDamage(
+			Character,
+			TotalDamage,
+			Character->Controller,
+			Character->GetEquippedWeapon(),
+			UDamageType::StaticClass()
+		);
+	}
+}
+
 // Called every frame
 void ULagCompensationComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -440,7 +471,7 @@ void ULagCompensationComponent::SaveFramePackage()
 	if (Character == nullptr || !Character->HasAuthority()) return;
 	if (FrameHistory.Num() <= 1)
 	{
-		FFramePackage ThisFrame;
+		FFramePackage ThisFrame; 
 		SaveFramePackage(ThisFrame);
 		FrameHistory.AddHead(ThisFrame);
 	}
