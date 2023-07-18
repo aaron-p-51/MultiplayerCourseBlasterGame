@@ -159,8 +159,10 @@ FServerSideRewindResult ULagCompensationComponent::ProjectileConfirmHit(const FF
 	HeadBox->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	HeadBox->SetCollisionResponseToChannel(ECC_HitBox, ECollisionResponse::ECR_Block);
 
+
+
 	FPredictProjectilePathParams PathParams;
-	PathParams.bTraceWithChannel = true;
+	PathParams.bTraceWithCollision = true;
 	PathParams.MaxSimTime = MaxRecordTime;
 	PathParams.LaunchVelocity = InitialVelocity;
 	PathParams.StartLocation = TraceStart;
@@ -174,9 +176,10 @@ FServerSideRewindResult ULagCompensationComponent::ProjectileConfirmHit(const FF
 	FPredictProjectilePathResult PathResult;
 
 	UGameplayStatics::PredictProjectilePath(this, PathParams, PathResult);
-
+	UE_LOG(LogTemp, Warning, TEXT("Path Shot!!!"));
 	if (PathResult.HitResult.bBlockingHit)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Head Shot!!!"));
 		// we hit the head return early
 		if (PathResult.HitResult.Component.IsValid())
 		{
@@ -444,6 +447,7 @@ FServerSideRewindResult ULagCompensationComponent::ServerSideRewind(class ABlast
 
 FServerSideRewindResult ULagCompensationComponent::ProjectileServerSideRewind(ABlasterCharacter* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize100& InitialVelocity, float HitTime)
 {
+	UE_LOG(LogTemp, Warning, TEXT("Server Here"));
 	const FFramePackage FrameToCheck = GetFrameToCheck(HitCharacter, HitTime);
 	return ProjectileConfirmHit(FrameToCheck, HitCharacter, TraceStart, InitialVelocity, HitTime);
 
@@ -549,6 +553,23 @@ void ULagCompensationComponent::ServerScoreRequest_Implementation(ABlasterCharac
 			UDamageType::StaticClass()
 		);
 	}
+}
+
+void ULagCompensationComponent::ProjectileServerScoreRequest_Implementation(ABlasterCharacter* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize100& InitialVelocity, float HitTime)
+{
+	FServerSideRewindResult Confirm = ProjectileServerSideRewind(HitCharacter, TraceStart, InitialVelocity, HitTime);
+
+	if (Character && HitCharacter && Confirm.bHitConfirmed)
+	{
+		UGameplayStatics::ApplyDamage(
+			HitCharacter,
+			Character->GetEquippedWeapon()->GetDamage(),
+			Character->Controller,
+			Character->GetEquippedWeapon(),
+			UDamageType::StaticClass()
+		);
+	}
+
 }
 
 void ULagCompensationComponent::ShotgunServerScoreRequest_Implementation(const TArray<ABlasterCharacter*>& HitCharacters, const FVector_NetQuantize& TraceStart, const TArray<FVector_NetQuantize>& HitLocations, float HitTime)
